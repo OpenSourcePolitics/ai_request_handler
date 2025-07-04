@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
       - name: ai_request_handler
-        image: registry.digitalocean.com/ai_request_handler/ai_request_handler:latest
+        image: rg.fr-par.scw.cloud/ai_request_handler/ai_request_handler:latest
         ports:
         - containerPort: 80
