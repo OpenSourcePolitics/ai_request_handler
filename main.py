@@ -3,17 +3,23 @@ import json
 from enum import Enum
 import logging
 import sys
-from langfuse import Langfuse
-from langfuse.decorators import observe, langfuse_context
-from langfuse.model import PromptClient
 from flask import Flask
 from openai import OpenAI
+from langfuse.model import PromptClient
+from langfuse import Langfuse
 
 app = Flask(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.WARN)
 logger = logging.getLogger("langfuse_faas")
 
 logger.info("Starting> 0001")
+
+langfuse = Langfuse(
+    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    host=os.getenv("LANGFUSE_BASE_URL"),
+)
+logger.info("Langfuse SDK v3 initialized")
 
 class ContentType(Enum):
     COMMENT = "comment"
@@ -55,27 +61,9 @@ def resolve_content_type(content_type_raw: str):
 def get_prompt_client(content_type: ContentType) -> PromptClient:
     prompt_name = PROMPT_NAME_MAPPING.get(content_type)
     logger.info(f"(get_prompt_client)> {prompt_name}")
-
-    langfuse = Langfuse(
-        secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-        public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-        host=os.getenv("LANGFUSE_BASE_URL")
-    )
     return langfuse.get_prompt(prompt_name, label="latest")
 
 
-def tag_trace_with_metadata(content_type: ContentType, host: str, extra_tags, langfuse_context):
-    base_tags = [content_type.value, host]
-    all_tags = base_tags + extra_tags
-
-    langfuse_context.update_current_trace(tags=all_tags)
-    langfuse_context.update_current_trace(metadata={
-        "content_type": content_type.value,
-        "host": host
-    })
-
-
-@observe(as_type="generation")
 def generate_model_response(**kwargs):
     model = kwargs.get("model")
     messages = kwargs.get("messages")
@@ -84,10 +72,11 @@ def generate_model_response(**kwargs):
         api_key=os.getenv("CLOUD_API_KEY"),
     )
 
-    langfuse_context.update_current_observation(
-        input=messages,
+    generation = langfuse.start_generation(
+        name="generate_model_response",
         model=model,
-        metadata={k: v for k, v in kwargs.items() if k not in ["model", "messages"]}
+        input={"messages": messages},
+        metadata={k: v for k, v in kwargs.items() if k not in ["model", "messages"]},
     )
 
     response = openai_client.chat.completions.create(**kwargs)
@@ -96,18 +85,18 @@ def generate_model_response(**kwargs):
     logger.info(f"Langfuse_context prompt_tokens : {response.usage.prompt_tokens}")
     logger.info(f"Langfuse_context completion_tokens : {response.usage.completion_tokens}")
 
-    langfuse_context.update_current_observation(
+    generation.update(
         output=completion,
         usage_details={
-            "input": response.usage.prompt_tokens,
-            "output": response.usage.completion_tokens
+            "input_tokens": response.usage.prompt_tokens,
+            "output_tokens": response.usage.completion_tokens,
         }
     )
+    generation.end()
 
     return completion
 
 
-@observe()
 def run_inference_pipeline(host, content_type_raw, content_user):
     content_type_enum = resolve_content_type(content_type_raw)
     logger.info("Inside run_inference_pipeline")
@@ -125,6 +114,8 @@ def run_inference_pipeline(host, content_type_raw, content_user):
     content_prompt = prompt_client.prompt
     content_config = prompt_client.config
 
+    span = langfuse.start_span(name="run_inference_pipeline")
+
     result = generate_model_response(
         model=content_config["model"],
         messages=[
@@ -137,12 +128,13 @@ def run_inference_pipeline(host, content_type_raw, content_user):
         presence_penalty=content_config["presence_penalty"],
     )
 
-    extra_tags = []
+    tags = [content_type_enum.value, host]
     if result not in {"SPAM", "NOT_SPAM"}:
-        extra_tags.append("invalid_output")
+        tags.append("invalid_output")
         result = ""
 
-    tag_trace_with_metadata(content_type_enum, host, extra_tags, langfuse_context)
+    span.update(tags=tags, metadata={"content_type": content_type_enum.value, "host": host})
+    span.end()
     return result
 
 
@@ -159,13 +151,6 @@ def handle(event, context):
 
     if not LANGFUSE_SECRET_KEY or not LANGFUSE_PUBLIC_KEY:
         return { "statusCode": 500, "body": json.dumps({"error": "Missing Langfuse configuration"}) }
-
-    langfuse_context.configure(
-            secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-            public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-            host=os.getenv("LANGFUSE_BASE_URL"),
-            enabled=True,
-        )
 
     headers = event.get("headers", {})
     decidim = headers.get("X-Decidim-Host", "")
@@ -196,7 +181,7 @@ def handle(event, context):
 
     try:
         spam_result = run_inference_pipeline(host, content_type, text)
-        langfuse_context.flush()
+        langfuse.flush()
     except Exception as e:
         print(f"The error is : {e}")
         logger.info(f"The error is : {e}")
@@ -225,17 +210,9 @@ def spam_detection():
     if not LANGFUSE_SECRET_KEY or not LANGFUSE_PUBLIC_KEY:
         return { "statusCode": 500, "body": json.dumps({"error": "Missing Langfuse configuration"}) }
 
-
-    langfuse_context.configure(
-            secret_key=LANGFUSE_SECRET_KEY,
-            public_key=LANGFUSE_PUBLIC_KEY,
-            host=LANGFUSE_BASE_URL,
-            enabled=True,
-        )
-
     try:
         spam_result = run_inference_pipeline("example.org", "Decidim::Proposals::Proposal", "More trees in our streets")
-        langfuse_context.flush()
+        langfuse.flush()
     except Exception as e:
         print(f"The error is : {e}")
         logger.info(f"The error is : {e}")
