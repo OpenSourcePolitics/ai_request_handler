@@ -65,6 +65,7 @@ def get_prompt_client(content_type: ContentType) -> PromptClient:
 
 
 def generate_model_response(**kwargs):
+
     model = kwargs.get("model")
     messages = kwargs.get("messages")
     openai_client = OpenAI(
@@ -230,6 +231,3 @@ def spam_detection():
         "statusCode": 200,
         "body": json.dumps({"spam": spam_result})
     }
-
-if __name__ == '__main__':
-    app.run(debug=True)
