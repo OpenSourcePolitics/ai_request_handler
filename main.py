@@ -72,28 +72,25 @@ def generate_model_response(**kwargs):
         api_key=os.getenv("CLOUD_API_KEY"),
     )
 
-    generation = langfuse.start_generation(
+    with langfuse.start_as_current_generation(
         name="generate_model_response",
         model=model,
         input={"messages": messages},
         metadata={k: v for k, v in kwargs.items() if k not in ["model", "messages"]},
-    )
+    ) as gen_span:
+        response = openai_client.chat.completions.create(**kwargs)
+        completion = response.choices[0].message.content
 
-    response = openai_client.chat.completions.create(**kwargs)
-    completion = response.choices[0].message.content
+        logger.info(f"prompt_tokens: {response.usage.prompt_tokens}")
+        logger.info(f"completion_tokens: {response.usage.completion_tokens}")
 
-    logger.info(f"Langfuse_context prompt_tokens : {response.usage.prompt_tokens}")
-    logger.info(f"Langfuse_context completion_tokens : {response.usage.completion_tokens}")
-
-    generation.update(
-        output=completion,
-        usage_details={
-            "input_tokens": response.usage.prompt_tokens,
-            "output_tokens": response.usage.completion_tokens,
-        }
-    )
-    generation.end()
-
+        gen_span.update(
+            output=completion,
+            usage_details={
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
+            }
+        )
     return completion
 
 
@@ -114,28 +111,36 @@ def run_inference_pipeline(host, content_type_raw, content_user):
     content_prompt = prompt_client.prompt
     content_config = prompt_client.config
 
-    span = langfuse.start_span(name="run_inference_pipeline")
+    with langfuse.start_as_current_span(
+            name="run_inference_pipeline",
+            input={"text": content_user},
+            metadata={
+                "content_type": content_type_enum.value,
+                "host": host,
+            }
+    ) as span:
+        result = generate_model_response(
+            model=content_config["model"],
+            messages=[
+                {"role": "system", "content": content_prompt},
+                {"role": "user",   "content": content_user}
+            ],
+            max_tokens=content_config["max_tokens"],
+            temperature=content_config["temperature"],
+            top_p=content_config["top_p"],
+            presence_penalty=content_config["presence_penalty"],
+        )
 
-    result = generate_model_response(
-        model=content_config["model"],
-        messages=[
-            {"role": "system", "content": content_prompt},
-            {"role": "user", "content": content_user}
-        ],
-        max_tokens=content_config["max_tokens"],
-        temperature=content_config["temperature"],
-        top_p=content_config["top_p"],
-        presence_penalty=content_config["presence_penalty"],
-    )
+        tags = [content_type_enum.value, host]
+        if result not in {"SPAM", "NOT_SPAM"}:
+            tags.append("invalid_output")
+            result = ""
 
-    tags = [content_type_enum.value, host]
-    if result not in {"SPAM", "NOT_SPAM"}:
-        tags.append("invalid_output")
-        result = ""
-
-    span.update(tags=tags, metadata={"content_type": content_type_enum.value, "host": host})
-    span.end()
-    return result
+        span.update(
+            tags=tags,
+            metadata={"output": result}
+        )
+        return result
 
 
 def handle(event, context):
