@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai_request_handler
+  namespace: decidim-ai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai_request_handler
+  template:
+    metadata:
+      labels:
+        app: ai_request_handler
+    spec:
+      containers:
+      - name: ai_request_handler
+        image: registry.digitalocean.com/ai_request_handler/ai_request_handler:latest
+        ports:
+        - containerPort: 80
