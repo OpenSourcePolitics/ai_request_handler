@@ -111,13 +111,11 @@ def run_inference_pipeline(host, content_type_raw, content_user):
     content_prompt = prompt_client.prompt
     content_config = prompt_client.config
 
+    tags = [content_type_enum.value, host]
+
     with langfuse.start_as_current_span(
             name="run_inference_pipeline",
             input={"text": content_user},
-            metadata={
-                "content_type": content_type_enum.value,
-                "host": host,
-            }
     ) as span:
         result = generate_model_response(
             model=content_config["model"],
@@ -131,15 +129,19 @@ def run_inference_pipeline(host, content_type_raw, content_user):
             presence_penalty=content_config["presence_penalty"],
         )
 
-        tags = [content_type_enum.value, host]
         if result not in {"SPAM", "NOT_SPAM"}:
             tags.append("invalid_output")
             result = ""
 
-        span.update(
+        span.update_trace(
             tags=tags,
-            metadata={"output": result}
+            metadata={
+                "content_type": content_type_enum.value,
+                "host": host
+            },
+            output=result,
         )
+
         return result
 
 
@@ -186,7 +188,6 @@ def handle(event, context):
 
     try:
         spam_result = run_inference_pipeline(host, content_type, text)
-        langfuse.flush()
     except Exception as e:
         print(f"The error is : {e}")
         logger.info(f"The error is : {e}")
