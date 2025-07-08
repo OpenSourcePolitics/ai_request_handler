@@ -1,0 +1,154 @@
+# flux-sync-langfuse.yml
+---
+
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: ai-request-handler
+  namespace: langfuse
+spec:
+  interval: 10m0s
+  url: https://github.com/OpenSourcePolitics/ai_request_handler
+  ref:
+    branch: main
+
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: langfuse
+  namespace: langfuse
+spec:
+  interval: 10m0s
+  path: ./prod
+  prune: false
+  sourceRef:
+    kind: GitRepository
+    name: ai-request-handler
+
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: HelmRepository
+metadata:
+  name: langfuse
+  namespace: langfuse
+spec:
+  interval: 24h0m0s
+  url: https://langfuse.github.io/langfuse-k8s
+  timeout: 3m0s
+
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: langfuse
+  namespace: langfuse
+spec:
+  interval: 15m0s
+  chart:
+    spec:
+      chart: langfuse
+      version: "1.3.0"
+      sourceRef:
+        kind: HelmRepository
+        name: langfuse
+        namespace: langfuse
+  values:
+    langfuse:
+      salt:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse
+            key: salt
+      nextauth:
+        secret:
+          valueFrom:
+            secretKeyRef:
+              name: langfuse
+              key: nextauth-secret
+        url: "https://langfuse.k8s.osp.cat"
+      ingress:
+        enabled: true
+        className: nginx
+        tls:
+          enabled: true
+          secretName: langfuse-tls
+        hosts:
+          - host: langfuse.k8s.osp.cat
+            paths:
+              - path: /
+                pathType: Prefix
+    postgresql:
+      deploy: false
+      host:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.postgres.libre.sh
+            key: host
+      port:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.postgres.libre.sh
+            key: port
+      directUrl:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.postgres.libre.sh
+            key: url
+      auth:
+        username:
+          valueFrom:
+            secretKeyRef:
+              name: langfuse.postgres.libre.sh
+              key: username
+        database:
+          valueFrom:
+            secretKeyRef:
+              name: langfuse.postgres.libre.sh
+              key: database
+        existingSecret: langfuse.postgres.libre.sh
+        secretKeys:
+          userPasswordKey: password
+    clickhouse:
+      auth:
+        existingSecret: clickhouse-langfuse
+        existingSecretKey: password
+    redis:
+      deploy: false
+      host:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.redis.libre.sh
+            key: host
+      port:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.redis.libre.sh
+            key: port
+      auth:
+        existingSecret: langfuse.redis.libre.sh
+        existingSecretPasswordKey: password
+    s3:
+      deploy: false
+      bucket:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.bucket.libre.sh
+            key: bucket
+      endpoint:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.bucket.libre.sh
+            key: endpoint
+      region: fr-par-1
+      forcePathStyle: true
+      accessKeyId:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.bucket.libre.sh
+            key: accessKey
+      secretAccessKey:
+        valueFrom:
+          secretKeyRef:
+            name: langfuse.bucket.libre.sh
+            key: secretKey
