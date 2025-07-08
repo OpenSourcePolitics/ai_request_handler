@@ -15,6 +15,32 @@ spec:
     spec:
       containers:
       - name: ai_request_handler
-        image: rg.fr-par.scw.cloud/ai_request_handler/ai_request_handler:latest
+        image: rg.fr-par.scw.cloud/ai_request_handler/ai_request_handler:0.0.1
         ports:
         - containerPort: 80
+        env:
+          - name: LANGFUSE_BASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: LANGFUSE_BASE_URL
+          - name: LANGFUSE_PUBLIC_KEY
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: LANGFUSE_PUBLIC_KEY
+          - name: LANGFUSE_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: LANGFUSE_SECRET_KEY
+          - name: CLOUD_BASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: CLOUD_BASE_URL
+          - name: CLOUD_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: CLOUD_API_KEY
