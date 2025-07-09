@@ -131,7 +131,6 @@ def run_inference_pipeline(host, content_type_raw, content_user):
 
         if result not in {"SPAM", "NOT_SPAM"}:
             tags.append("invalid_output")
-            result = ""
 
         span.update_trace(
             tags=tags,
