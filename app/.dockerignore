@@ -1,1 +1,4 @@
 ../myenv
+.env
+.env.example
+Makefile
