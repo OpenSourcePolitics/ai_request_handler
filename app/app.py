@@ -201,7 +201,7 @@ def handle(event, context):
         "body": json.dumps({"spam": spam_result})
     }
 
-@app.route('/')
+@app.route('/spam/detection')
 def spam_detection():
     logger.info("Starting handle function")
 
