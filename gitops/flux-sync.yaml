@@ -2,10 +2,10 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
-  name: ai-request-handler
+  name: ai-request-handler-gr
   namespace: decidim-ai
 spec:
-  interval: 01m0s
+  interval: 20m0s
   ref:
     branch: main
   url: https://github.com/OpenSourcePolitics/ai_request_handler
@@ -13,14 +13,15 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: ai-request-handler
+  name: ai-request-handler-flux
   namespace: decidim-ai
 spec:
   prune: true
-  interval: 01m0s
+  interval: 10m0s
   path: ./gitops
   images:
     - name: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler
       newTag: 0.0.1
-resources:
-  - deployment.yaml
+  sourceRef:
+    name: ai-request-handler-gr
+    kind: GitRepository
