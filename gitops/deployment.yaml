@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-request-handler
+  namespace: decidim-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-request-handler
+  template:
+    metadata:
+      labels:
+        app: ai-request-handler
+    spec:
+      containers:
+      - name: ai-request-handler
+        image: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler:0.0.1
+        ports:
+        - containerPort: 80
+        env:
+          - name: LANGFUSE_BASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: LANGFUSE_BASE_URL
+          - name: LANGFUSE_PUBLIC_KEY
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: LANGFUSE_PUBLIC_KEY
+          - name: LANGFUSE_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: LANGFUSE_SECRET_KEY
+          - name: CLOUD_BASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: CLOUD_BASE_URL
+          - name: CLOUD_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: CLOUD_API_KEY
