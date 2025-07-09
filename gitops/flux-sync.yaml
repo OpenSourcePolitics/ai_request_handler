@@ -5,7 +5,7 @@ metadata:
   name: ai-request-handler
   namespace: decidim-ai
 spec:
-  interval: 20m0s
+  interval: 01m0s
   ref:
     branch: main
   url: https://github.com/OpenSourcePolitics/ai_request_handler
@@ -17,7 +17,7 @@ metadata:
   namespace: decidim-ai
 spec:
   prune: true
-  interval: 10m0s
+  interval: 01m0s
   path: ./gitops
   images:
     - name: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler
