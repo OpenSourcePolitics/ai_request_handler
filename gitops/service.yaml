@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ai_request_handler
+  name: ai-request-handler
   namespace: decidim-ai
 spec:
   selector:
-    app: ai_request_handler
+    app: ai-request-handler
   ports:
     - protocol: TCP
       port: 80

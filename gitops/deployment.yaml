@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ai_request_handler
+  name: ai-request-handler
   namespace: decidim-ai
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: ai_request_handler
+      app: ai-request-handler
   template:
     metadata:
       labels:
-        app: ai_request_handler
+        app: ai-request-handler
     spec:
       containers:
-      - name: ai_request_handler
+      - name: ai-request-handler
         image: rg.fr-par.scw.cloud/ai_request_handler/ai_request_handler:0.0.1
         ports:
         - containerPort: 80
