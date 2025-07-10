@@ -1,7 +1,8 @@
 name: Docker image build and push
 
 on:
-  release: [published]
+  release:
+    types: [published]
 
 jobs:
   generate_release:
