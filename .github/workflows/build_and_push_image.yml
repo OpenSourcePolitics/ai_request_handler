@@ -17,3 +17,4 @@ jobs:
           password: ${{ secrets.AUTH_TOKEN }}
           image_name: ${{ vars.IMAGE_NAME }}
           tag: ${{ github.ref }}
+          context: "./app"
