@@ -30,6 +30,11 @@ spec:
               secretKeyRef:
                 name: arh-secrets
                 key: LANGFUSE_PUBLIC_KEY
+          - name: LANGFUSE_LOG_LEVEL
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: LANGFUSE_LOG_LEVEL
           - name: LANGFUSE_SECRET_KEY
             valueFrom:
               secretKeyRef:
