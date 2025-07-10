@@ -27,7 +27,7 @@ fi
 
 # Replace the existing newTag value
 if grep -qE 'newTag:' "$FILE"; then
-  sed -i.bak -E "s#(newTag:\s*).*\$#\1 $TAG#" "$FILE"
+  sed -i.bak -E "s#(newTag:\s*).*\$#\1 v$TAG#" "$FILE"
   rm -f "${FILE}.bak"
   echo "Updated flux-sync.yaml with newTag: $TAG"
 else
