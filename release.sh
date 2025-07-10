@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Prompt for the new tag version
-read -r -p "Enter the new tag (e.g., v1.2.3): " TAG
+read -r -p "Enter the new tag (e.g., 1.2.3): " TAG
 if [[ -z "$TAG" ]]; then
   echo "No tag entered. Exiting."
   exit 1
@@ -48,9 +48,7 @@ git push origin main
 git push origin "v$TAG"
 echo "Tag v$TAG created!"
 
-gh release create "v$TAG"
 gh release create "v$TAG" --title "Release v$TAG"
-
 
 echo "Release v$TAG completed successfully!"
 
