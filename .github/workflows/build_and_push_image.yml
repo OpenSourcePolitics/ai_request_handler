@@ -1,9 +1,6 @@
 name: Docker image build and push
 
-on:
-  push:
-    tags:
-      - 'v*.*.*'
+on: push
 
 jobs:
   generate_release:
