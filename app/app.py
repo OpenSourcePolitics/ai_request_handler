@@ -9,7 +9,7 @@ from langfuse.model import PromptClient
 from langfuse import Langfuse
 
 app = Flask(__name__)
-logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("langfuse_faas")
 
 logger.info("Starting> 0001")
