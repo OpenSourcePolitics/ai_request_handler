@@ -1,31 +1,19 @@
 name: Docker image build and push
 
-on: push
+on:
+  release: [published]
 
 jobs:
   generate_release:
     name: Generate release
-    if: "github.ref == 'refs/heads/main'"
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
-      - uses: mathieudutour/github-tag-action@v6.1
-        name: Bump version and push tag
-        id: tag_version
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: ncipollo/release-action@v1
-        name: Create a GitHub release
-        with:
-          generateReleaseNotes: true
-          tag: ${{ steps.tag_version.outputs.new_tag }}
-          name: Release ${{ steps.tag_version.outputs.new_tag }}
-          body: ${{ steps.tag_version.outputs.changelog }}
       - uses: OpenSourcePolitics/build-and-push-images-action@master
         with:
           registry: ${{ vars.REGISTRY_ENDPOINT }}
           namespace: ${{ vars.REGISTRY_NAMESPACE }}
           password: ${{ secrets.TOKEN }}
           image_name: ${{ vars.IMAGE_NAME }}
-          tag: ${{ steps.tag_version.outputs.new_tag }}
+          tag: ${{ github.ref_name }}
           context: "./app"
