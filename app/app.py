@@ -9,11 +9,18 @@ from langfuse.model import PromptClient
 from langfuse import Langfuse
 
 app = Flask(__name__)
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+LOG_LEVEL = os.getenv("LANGFUSE_LOG_LEVEL", "WARN").upper()
+if LOG_LEVEL == "DEBUG":
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+elif LOG_LEVEL == "INFO":
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+elif LOG_LEVEL == "WARN":
+    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+else:
+    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+
 logger = logging.getLogger("langfuse_faas")
-
-logger.info("Starting> 0001")
-
 langfuse = Langfuse(
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
     public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
@@ -65,7 +72,6 @@ def get_prompt_client(content_type: ContentType) -> PromptClient:
 
 
 def generate_model_response(**kwargs):
-
     model = kwargs.get("model")
     messages = kwargs.get("messages")
     openai_client = OpenAI(
