@@ -7,6 +7,7 @@ spec:
   selector:
     app: ai-request-handler
   ports:
-    - protocol: TCP
-      port: 5000
-      targetPort: 80
+   - name: http
+     port: 80
+     protocol: TCP
+     targetPort: http

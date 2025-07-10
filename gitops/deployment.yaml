@@ -4,6 +4,7 @@ metadata:
   name: ai-request-handler-deploy
   namespace: decidim-ai
 spec:
+  # TODO: Define resources limits
   replicas: 1
   selector:
     matchLabels:

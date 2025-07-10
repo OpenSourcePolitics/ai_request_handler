@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: 100g
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+    uptime.libre.sh/path: /
+  name: ai-request-handler
+  namespace: decidim-ai
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: decidim-ai.k8s.osp.cat
+    http:
+      paths:
+      - backend:
+          service:
+            name: ai-request-handler-svc
+            port:
+              name: http
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - decidim-ai.k8s.osp.cat
+    secretName: prod-tls
