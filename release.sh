@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # release.sh - Release script for ai_request_handler
-# requirements: Git, Github CLI
+
 set -euo pipefail
+
+# Ensure we are on the main branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if [[ "$current_branch" != "main" ]]; then
+  echo "Error: You must be on the 'main' branch (current: '$current_branch')."
+  exit 1
+fi
 
 # Prompt for the new tag version
 read -r -p "Enter the new tag (e.g., 1.2.3): " TAG
@@ -15,14 +22,6 @@ FILE="gitops/flux-sync.yaml"
 if [[ ! -f "$FILE" ]]; then
   echo "Error: File $FILE not found!"
   exit 1
-fi
-
-if ! command -v gh &> /dev/null; then
-    echo "gh could not be found. Please install gh to proceed."
-    echo "| Install yq
-> brew install gh
-> sudo apt-get install gh"
-    exit 1
 fi
 
 # Replace the existing newTag value
@@ -46,9 +45,5 @@ git tag -a "v$TAG" -m "Release ai_request_handler v$TAG"
 echo "Pushing commit and tag to remote..."
 git push origin main
 git push origin "v$TAG"
-echo "Tag v$TAG created!"
 
-gh release create "v$TAG" --title "Release v$TAG"
-
-echo "Release v$TAG completed successfully!"
-
+echo "Tag v$TAG completed successfully!"
