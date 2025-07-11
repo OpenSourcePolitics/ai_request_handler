@@ -4,7 +4,6 @@ metadata:
   name: ai-request-handler-deploy
   namespace: decidim-ai
 spec:
-  # TODO: Define resources limits
   replicas: 1
   selector:
     matchLabels:
@@ -19,6 +18,13 @@ spec:
         image: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler:0.0.1
         ports:
         - containerPort: 80
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "1"
+            memory: "1Gi"
         env:
           - name: LANGFUSE_BASE_URL
             valueFrom:
