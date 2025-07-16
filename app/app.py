@@ -156,10 +156,9 @@ def spam_detection():
         return jsonify(error="Missing Langfuse configuration"), 500
 
     headers = request.headers
-    decidim_host = headers.get("X-Decidim-Host")
-    host = headers.get("X-Host", "")
-    if not decidim_host:
-        return jsonify(error="Missing Decidim Header"), 400
+    host = headers.get("X-Host") or headers.get("X-Decidim-Host")
+    if not host:
+        return jsonify(error="Missing required header: X-Host or X-Decidim-Host"), 400
 
     data = request.get_json(silent=True)
     if not data:
@@ -173,11 +172,16 @@ def spam_detection():
     try:
         spam_result = run_inference_pipeline(host, content_type, text)
         langfuse.flush()
-    except ValueError as ve:
-        logger.info(f"ValueError: {ve}")
-        return jsonify(error=str(ve)), 400
-    except Exception as e:
-        logger.error(f"Inference error: {e}")
-        return jsonify(message="AI Detection Error", error=str(e)), 503
+    except ValueError:
+        logger.info("Client error during inference pipeline", exc_info=True)
+        return jsonify(error="Unsupported content type"), 400
+    except Exception:
+        logger.error("Inference error", exc_info=True)
+        return (
+            jsonify(
+                message="AI Detection temporarily unavailable; please try again later"
+            ),
+            503,
+        )
 
     return jsonify(spam=spam_result), 200
