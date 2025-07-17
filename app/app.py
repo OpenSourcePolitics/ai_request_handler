@@ -1,9 +1,8 @@
 import os
-import json
 from enum import Enum
 import logging
 import sys
-from flask import Flask
+from flask import Flask, request, jsonify
 from openai import OpenAI
 from langfuse.model import PromptClient
 from langfuse import Langfuse
@@ -150,90 +149,39 @@ def run_inference_pipeline(host, content_type_raw, content_user):
 
         return result
 
-
-def handle(event, context):
+@app.route('/spam/detection', methods=['POST'])
+def spam_detection():
     logger.info("Starting handle function")
+    if not os.getenv("LANGFUSE_SECRET_KEY") or not os.getenv("LANGFUSE_PUBLIC_KEY"):
+        return jsonify(error="Missing Langfuse configuration"), 500
 
-    LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
-    LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
-    LANGFUSE_BASE_URL = os.getenv("LANGFUSE_BASE_URL")
+    headers = request.headers
+    host = headers.get("X-Host") or headers.get("X-Decidim-Host")
+    if not host:
+        return jsonify(error="Missing required header: X-Host or X-Decidim-Host"), 400
 
-    logger.info(f"Langfuse host: {LANGFUSE_BASE_URL}")
-    logger.info(f"Langfuse secret key: {LANGFUSE_SECRET_KEY}")
-    logger.info(f"Langfuse public key: {LANGFUSE_PUBLIC_KEY}")
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify(error="Invalid JSON payload"), 400
 
-    if not LANGFUSE_SECRET_KEY or not LANGFUSE_PUBLIC_KEY:
-        return { "statusCode": 500, "body": json.dumps({"error": "Missing Langfuse configuration"}) }
-
-    headers = event.get("headers", {})
-    decidim = headers.get("X-Decidim-Host", "")
-    logger.info(f"Headers {headers}")
-    logger.info(f"Decidim {decidim}")
-    if not decidim:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Missing Decidim Header"})
-        }
-
-    try:
-        body = json.loads(event.get("body", "{}"))
-        text = body.get("text", "")
-        content_type = body.get("type", "")
-        host = event.get("headers", {}).get("X-Host", "")
-    except json.JSONDecodeError:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Invalid request payload"})
-        }
-
+    text = data.get("text", "").strip()
+    content_type = data.get("type", "").strip()
     if not text:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Text cannot be empty"})
-        }
+        return jsonify(error="Text cannot be empty"), 400
 
     try:
         spam_result = run_inference_pipeline(host, content_type, text)
-    except Exception as e:
-        print(f"The error is : {e}")
-        logger.info(f"The error is : {e}")
-        return {
-            "statusCode": 503,
-            "body": json.dumps({"message": "AI Detection Error", "error": e})
-        }
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps({"spam": spam_result})
-    }
-
-@app.route('/spam/detection')
-def spam_detection():
-    logger.info("Starting handle function")
-
-    LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
-    LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
-    LANGFUSE_BASE_URL = os.getenv("LANGFUSE_BASE_URL")
-
-    logger.info(f"Langfuse host: {LANGFUSE_BASE_URL}")
-    logger.info(f"Langfuse secret key: {LANGFUSE_SECRET_KEY}")
-    logger.info(f"Langfuse public key: {LANGFUSE_PUBLIC_KEY}")
-
-    if not LANGFUSE_SECRET_KEY or not LANGFUSE_PUBLIC_KEY:
-        return { "statusCode": 500, "body": json.dumps({"error": "Missing Langfuse configuration"}) }
-
-    try:
-        spam_result = run_inference_pipeline("example.org", "Decidim::Proposals::Proposal", "More trees in our streets")
         langfuse.flush()
-    except Exception as e:
-        print(f"The error is : {e}")
-        logger.info(f"The error is : {e}")
-        return {
-            "statusCode": 503,
-            "body": json.dumps({"message": "AI Detection Error", "error": e})
-        }
+    except ValueError:
+        logger.info("Client error during inference pipeline", exc_info=True)
+        return jsonify(error="Unsupported content type"), 400
+    except Exception:
+        logger.error("Inference error", exc_info=True)
+        return (
+            jsonify(
+                message="AI Detection temporarily unavailable; please try again later"
+            ),
+            503,
+        )
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps({"spam": spam_result})
-    }
+    return jsonify(spam=spam_result), 200
