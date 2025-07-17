@@ -1,0 +1,40 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-request-handler-hpa
+  namespace: decidim-ai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-request-handler-deploy
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 90
+  behavior:
+    scaleDown:
+      policies:
+      - periodSeconds: 15
+        type: Pods
+        value: 1
+      - periodSeconds: 15
+        type: Pods
+        value: 25
+      selectPolicy: Max
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      policies:
+      - periodSeconds: 15
+        type: Pods
+        value: 1
+      - periodSeconds: 15
+        type: Percent
+        value: 50
+      selectPolicy: Max
+      stabilizationWindowSeconds: 300
