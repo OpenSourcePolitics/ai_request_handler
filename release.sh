@@ -34,9 +34,25 @@ else
   exit 1
 fi
 
+# Update the image tag in deployment.yaml
+FILE="deployment.yaml"
+if [[ ! -f "$FILE" ]]; then
+  echo "Error: File $FILE not found!"
+  exit 1
+fi
+
+if grep -q 'image: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler:' "$FILE"; then
+  sed -i.bak "s#image: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler:.*#image: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler:v$TAG#" "$FILE"
+  rm -f "${FILE}.bak"
+  echo "Updated deployment.yaml image to v$TAG"
+else
+  echo "Error: image line not found in $FILE"
+  exit 1
+fi
+
 # Commit changes and create Git tag
 commit_msg="chore: release ai_request_handler v$TAG"
-git add "$FILE"
+git add "gitops/flux-sync.yaml" "deployment.yaml"
 git commit -m "$commit_msg"
 
 echo "Creating annotated Git tag v$TAG..."
