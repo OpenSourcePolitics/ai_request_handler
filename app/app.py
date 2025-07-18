@@ -95,6 +95,7 @@ def generate_model_response(**kwargs):
             usage_details={
                 "input_tokens": response.usage.prompt_tokens,
                 "output_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.prompt_tokens + response.usage.completion_tokens,
             }
         )
     return completion
