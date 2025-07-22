@@ -16,3 +16,6 @@ flux-init:
   --path=clusters/my-cluster \
   --read-write-key \
   --personal
+
+request:
+	curl -XPOST http://localhost:8000/spam/detection -H "X-Decidim-Host: localhost" -H "Content-Type: application/json" -d '{"text": "Look my new proposals - V-Bucks", "type": "Decidim::Proposals::Proposal"}'

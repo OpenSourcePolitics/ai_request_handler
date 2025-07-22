@@ -1,6 +1,7 @@
 import os
 from enum import Enum
 import logging
+import redis
 import sys
 from flask import Flask, request, jsonify
 from openai import OpenAI
