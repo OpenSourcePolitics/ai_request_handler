@@ -4,6 +4,7 @@ import logging
 import redis
 import sys
 import base64
+import requests
 from flask import Flask, request, jsonify
 from openai import OpenAI
 from langfuse.model import PromptClient
@@ -191,17 +192,25 @@ def spam_detection():
             503,
         )
 
-    if spam_result == "SPAM":
+    if spam_result == "SPAM" and os.getenv("WEBHOOK_ENDPOINT") is not None:
         encoded_host = host.encode("utf-8")
         b64_host = base64.b64encode(encoded_host)
 
+        cache.incr(f"total-{b64_host}")
         if cache.get(b64_host) is None:
             cache.set(b64_host, 1)
             cache.expire(b64_host, 10)
         else:
             cache.incr(b64_host)
+            cache.incr(f"total-{b64_host}")
 
-        total_count = int(cache.get(b64_host))
-        if total_count is not None and total_count > os.getenv("SPAM_LIMIT", 2):
+        current_period_count = int(cache.get(b64_host))
+        total_count = int(cache.get(f"total-{b64_host}"))
+        if current_period_count is not None and current_period_count > int(os.getenv("SPAM_LIMIT", "2")):
+            url = os.getenv("WEBHOOK_ENDPOINT")
+            payload = {'host': host, "limit": int(os.getenv("SPAM_LIMIT", "2")), "total": total_count}
+            token = os.getenv("WEBHOOK_AUTH_TOKEN")
+            requests.post(url, json=payload, headers={"Content-Type": "application/json", "X-Auth": token})
+            cache.delete(b64_host)
             logger.info("-- Limit exceeded")
     return jsonify(spam=spam_result), 200
