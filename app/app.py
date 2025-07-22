@@ -9,9 +9,6 @@ from openai import OpenAI
 from langfuse.model import PromptClient
 from langfuse import Langfuse
 
-app = Flask(__name__)
-cache = redis.Redis(host='redis', port=6379)
-
 LOG_LEVEL = os.getenv("LANGFUSE_LOG_LEVEL", "WARN").upper()
 if LOG_LEVEL == "DEBUG":
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -21,6 +18,12 @@ elif LOG_LEVEL == "WARN":
     logging.basicConfig(stream=sys.stdout, level=logging.WARN)
 else:
     logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+
+app = Flask(__name__)
+cache = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
 
 logger = logging.getLogger("langfuse_faas")
 langfuse = Langfuse(
@@ -164,10 +167,6 @@ def spam_detection():
     if not host:
         return jsonify(error="Missing required header: X-Host or X-Decidim-Host"), 400
 
-
-    encoded_host = host.encode("utf-8")
-    cache.incr(base64.b64encode(encoded_host))
-
     data = request.get_json(silent=True)
     if not data:
         return jsonify(error="Invalid JSON payload"), 400
@@ -192,4 +191,17 @@ def spam_detection():
             503,
         )
 
+    if spam_result == "SPAM":
+        encoded_host = host.encode("utf-8")
+        b64_host = base64.b64encode(encoded_host)
+
+        if cache.get(b64_host) is None:
+            cache.set(b64_host, 1)
+            cache.expire(b64_host, 10)
+        else:
+            cache.incr(b64_host)
+
+        total_count = int(cache.get(b64_host))
+        if total_count is not None and total_count > os.getenv("SPAM_LIMIT", 2):
+            logger.info("-- Limit exceeded")
     return jsonify(spam=spam_result), 200
