@@ -1,7 +1,7 @@
 services:
   web:
-    build: .
-    #image: ai_request_handler:1.0.3
+    #build: .
+    image: ai_request_handler:1.0.3
     ports:
       - "8000:80"
     env_file: .env

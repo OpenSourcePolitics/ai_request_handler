@@ -3,12 +3,14 @@ from enum import Enum
 import logging
 import redis
 import sys
+import base64
 from flask import Flask, request, jsonify
 from openai import OpenAI
 from langfuse.model import PromptClient
 from langfuse import Langfuse
 
 app = Flask(__name__)
+cache = redis.Redis(host='redis', port=6379)
 
 LOG_LEVEL = os.getenv("LANGFUSE_LOG_LEVEL", "WARN").upper()
 if LOG_LEVEL == "DEBUG":
@@ -161,6 +163,10 @@ def spam_detection():
     host = headers.get("X-Host") or headers.get("X-Decidim-Host")
     if not host:
         return jsonify(error="Missing required header: X-Host or X-Decidim-Host"), 400
+
+
+    encoded_host = host.encode("utf-8")
+    cache.incr(base64.b64encode(encoded_host))
 
     data = request.get_json(silent=True)
     if not data:
