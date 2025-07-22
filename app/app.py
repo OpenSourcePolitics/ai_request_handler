@@ -199,16 +199,16 @@ def spam_detection():
         cache.incr(f"total-{b64_host}")
         if cache.get(b64_host) is None:
             cache.set(b64_host, 1)
-            cache.expire(b64_host, 10)
+            cache.expire(b64_host, int(os.getenv("SPAM_PERIOD_LIMIT", "1800")))
         else:
             cache.incr(b64_host)
             cache.incr(f"total-{b64_host}")
 
         current_period_count = int(cache.get(b64_host))
         total_count = int(cache.get(f"total-{b64_host}"))
-        if current_period_count is not None and current_period_count > int(os.getenv("SPAM_LIMIT", "2")):
+        if current_period_count is not None and current_period_count > int(os.getenv("SPAM_LIMIT", "20")):
             url = os.getenv("WEBHOOK_ENDPOINT")
-            payload = {'host': host, "limit": int(os.getenv("SPAM_LIMIT", "2")), "total": total_count}
+            payload = {'host': host, "limit": int(os.getenv("SPAM_LIMIT", "20")), "total": total_count}
             token = os.getenv("WEBHOOK_AUTH_TOKEN")
             requests.post(url, json=payload, headers={"Content-Type": "application/json", "X-Auth": token})
             cache.delete(b64_host)
