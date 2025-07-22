@@ -55,3 +55,38 @@ spec:
               secretKeyRef:
                 name: arh-secrets
                 key: CLOUD_API_KEY
+          - name: WEBHOOK_ENDPOINT
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: WEBHOOK_ENDPOINT
+          - name: WEBHOOK_AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: WEBHOOK_AUTH_TOKEN
+          - name: SPAM_PERIOD_LIMIT
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: SPAM_PERIOD_LIMIT
+          - name: SPAM_LIMIT
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: SPAM_LIMIT
+          - name: REDIS_HOST
+            valueFrom:
+              secretKeyRef:
+                name: ai-request-handler--re.redis.libre.sh
+                key: host
+          - name: REDIS_PORT
+            valueFrom:
+              secretKeyRef:
+                name: ai-request-handler--re.redis.libre.sh
+                key: port
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ai-request-handler--re.redis.libre.sh
+                key: password

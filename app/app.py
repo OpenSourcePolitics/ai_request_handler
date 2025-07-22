@@ -24,7 +24,12 @@ REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 
 app = Flask(__name__)
-cache = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
+r = redis.Redis(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    username=os.getenv("REDIS_USERNAME", ""),
+    password=os.getenv("REDIS_PASSWORD", "")
+)
 
 logger = logging.getLogger("langfuse_faas")
 langfuse = Langfuse(
@@ -196,21 +201,21 @@ def spam_detection():
         encoded_host = host.encode("utf-8")
         b64_host = base64.b64encode(encoded_host)
 
-        cache.incr(f"total-{b64_host}")
-        if cache.get(b64_host) is None:
-            cache.set(b64_host, 1)
-            cache.expire(b64_host, int(os.getenv("SPAM_PERIOD_LIMIT", "1800")))
+        r.incr(f"total-{b64_host}")
+        if r.get(b64_host) is None:
+            r.set(b64_host, 1)
+            r.expire(b64_host, int(os.getenv("SPAM_PERIOD_LIMIT", "1800")))
         else:
-            cache.incr(b64_host)
-            cache.incr(f"total-{b64_host}")
+            r.incr(b64_host)
+            r.incr(f"total-{b64_host}")
 
-        current_period_count = int(cache.get(b64_host))
-        total_count = int(cache.get(f"total-{b64_host}"))
+        current_period_count = int(r.get(b64_host))
+        total_count = int(r.get(f"total-{b64_host}"))
         if current_period_count is not None and current_period_count > int(os.getenv("SPAM_LIMIT", "20")):
             url = os.getenv("WEBHOOK_ENDPOINT")
             payload = {'host': host, "limit": int(os.getenv("SPAM_LIMIT", "20")), "total": total_count}
             token = os.getenv("WEBHOOK_AUTH_TOKEN")
             requests.post(url, json=payload, headers={"Content-Type": "application/json", "X-Auth": token})
-            cache.delete(b64_host)
+            r.delete(b64_host)
             logger.info("-- Limit exceeded")
     return jsonify(spam=spam_result), 200
