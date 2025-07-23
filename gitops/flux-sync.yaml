@@ -21,7 +21,7 @@ spec:
   path: ./gitops
   images:
     - name: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler
-      newTag:v1.0.6
+      newTag:v1.0.7
   sourceRef:
     name: ai-request-handler-gr
     kind: GitRepository
