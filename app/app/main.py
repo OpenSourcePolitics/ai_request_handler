@@ -10,15 +10,13 @@ from langfuse import Langfuse
 from .models import Host
 from .utils import send_webhook_notification, increase_spam_count
 
-LOG_LEVEL = os.getenv("LANGFUSE_LOG_LEVEL", "WARN").upper()
-if LOG_LEVEL == "DEBUG":
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-elif LOG_LEVEL == "INFO":
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-elif LOG_LEVEL == "WARN":
-    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
-else:
-    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+log_level_str = os.getenv("LANGFUSE_LOG_LEVEL", "WARN").upper()
+log_level = getattr(logging, log_level_str.upper(), logging.WARN)
+logging.basicConfig(
+        stream=sys.stdout,
+        level=log_level
+    )
+logger = logging.getLogger("ai_request_handler")
 
 # REDIS
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
@@ -41,7 +39,6 @@ r = redis.Redis(
     password=os.getenv("REDIS_PASSWORD", "")
 )
 
-logger = logging.getLogger("langfuse_faas")
 langfuse = Langfuse(
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
     public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
