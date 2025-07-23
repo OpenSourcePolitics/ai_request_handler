@@ -1,6 +1,7 @@
 import requests
 import redis
 import time
+from uuid import uuid4
 from .models import Host
 
 
@@ -15,7 +16,9 @@ def increase_spam_count(h: Host, r: redis.Redis, spam_limit: int, spam_period_li
     # Remove outdated records
     pipe.zremrangebyscore(period_key, 0, window_start)
 
-    pipe.zadd(period_key, {str(now): now})
+    member = f"{now}:{uuid4().hex}"
+    pipe.zadd(period_key, {member: now})
+
     pipe.zcard(period_key)
     pipe.incr(total_key)
     pipe.expire(period_key, spam_period_limit + 5)
