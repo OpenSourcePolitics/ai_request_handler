@@ -6,7 +6,7 @@ RUN pip install --upgrade pip
 
 COPY ./requirements.txt requirements.txt
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
-COPY ./app .
+COPY . .
 
 # Defines 1 worker
 # Expose the app on port 80
