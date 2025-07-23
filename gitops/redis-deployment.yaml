@@ -1,0 +1,9 @@
+apiVersion: core.libre.sh/v1alpha1
+kind: Redis
+metadata:
+  name: ai-request-handler--re
+  namespace: decidim-ai
+spec:
+  mode: Normal
+  persistence:
+    enabled: false

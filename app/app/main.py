@@ -1,13 +1,14 @@
 import os
 from enum import Enum
 import logging
+import redis
 import sys
 from flask import Flask, request, jsonify
 from openai import OpenAI
 from langfuse.model import PromptClient
 from langfuse import Langfuse
-
-app = Flask(__name__)
+from .models import Host
+from .utils import send_webhook_notification, increase_spam_count
 
 LOG_LEVEL = os.getenv("LANGFUSE_LOG_LEVEL", "WARN").upper()
 if LOG_LEVEL == "DEBUG":
@@ -19,6 +20,27 @@ elif LOG_LEVEL == "WARN":
 else:
     logging.basicConfig(stream=sys.stdout, level=logging.WARN)
 
+# REDIS
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+
+# WEBHOOK
+WEBHOOK_URL = os.getenv("WEBHOOK_ENDPOINT")
+WEBHOOK_AUTH_TOKEN = os.getenv("WEBHOOK_AUTH_TOKEN")
+WEBHOOK_AUTH_NAME = os.getenv("WEBHOOK_AUTH_NAME")
+WEBHOOK = (WEBHOOK_URL, WEBHOOK_AUTH_NAME, WEBHOOK_AUTH_TOKEN)
+
+SPAM_LIMIT = int(os.getenv("SPAM_LIMIT", "20"))
+SPAM_PERIOD_LIMIT = int(os.getenv("SPAM_PERIOD_LIMIT", "1800"))
+
+app = Flask(__name__)
+r = redis.Redis(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    username=os.getenv("REDIS_USERNAME", ""),
+    password=os.getenv("REDIS_PASSWORD", "")
+)
+
 logger = logging.getLogger("langfuse_faas")
 langfuse = Langfuse(
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
@@ -26,6 +48,7 @@ langfuse = Langfuse(
     host=os.getenv("LANGFUSE_BASE_URL"),
 )
 logger.info("Langfuse SDK v3 initialized")
+
 
 class ContentType(Enum):
     COMMENT = "comment"
@@ -35,6 +58,7 @@ class ContentType(Enum):
     DEBATE = "debate"
     INITIATIVE = "initiative"
     COLLABORATIVE_DRAFT = "collaborative_draft"
+
 
 CONTENT_TYPE_MAPPING = {
     "Decidim::Comments::Comment": ContentType.COMMENT,
@@ -54,6 +78,7 @@ PROMPT_NAME_MAPPING = {
     ContentType.DEBATE: "Spam Debate Detection",
     ContentType.INITIATIVE: "Spam Initiative Detection"
 }
+
 
 def resolve_content_type(content_type_raw: str):
     content_type = CONTENT_TYPE_MAPPING.get(content_type_raw)
@@ -79,10 +104,10 @@ def generate_model_response(**kwargs):
     )
 
     with langfuse.start_as_current_generation(
-        name="generate_model_response",
-        model=model,
-        input={"messages": messages},
-        metadata={k: v for k, v in kwargs.items() if k not in ["model", "messages"]},
+            name="generate_model_response",
+            model=model,
+            input={"messages": messages},
+            metadata={k: v for k, v in kwargs.items() if k not in ["model", "messages"]},
     ) as gen_span:
         response = openai_client.chat.completions.create(**kwargs)
         completion = response.choices[0].message.content
@@ -128,7 +153,7 @@ def run_inference_pipeline(host, content_type_raw, content_user):
             model=content_config["model"],
             messages=[
                 {"role": "system", "content": content_prompt},
-                {"role": "user",   "content": content_user}
+                {"role": "user", "content": content_user}
             ],
             max_tokens=content_config["max_tokens"],
             temperature=content_config["temperature"],
@@ -149,6 +174,7 @@ def run_inference_pipeline(host, content_type_raw, content_user):
         )
 
         return result
+
 
 @app.route('/spam/detection', methods=['POST'])
 def spam_detection():
@@ -185,4 +211,18 @@ def spam_detection():
             503,
         )
 
+    if spam_result == "SPAM" and any(WEBHOOK):
+        h = Host(host=host)
+        current, total, exceeded = increase_spam_count(h=h,
+                                                       r=r,
+                                                       spam_limit=SPAM_LIMIT,
+                                                       spam_period_limit=SPAM_PERIOD_LIMIT)
+        if exceeded:
+            logger.info("-- Limit exceeded ({}/{})--".format(current, SPAM_LIMIT), exc_info=True)
+            send_webhook_notification(h=h,
+                                      webhook=WEBHOOK,
+                                      r=r,
+                                      limit=SPAM_LIMIT,
+                                      current=current,
+                                      total_count=total)
     return jsonify(spam=spam_result), 200
