@@ -207,7 +207,6 @@ def spam_detection():
             r.expire(b64_host, int(os.getenv("SPAM_PERIOD_LIMIT", "1800")))
         else:
             r.incr(b64_host)
-            r.incr(f"total-{b64_host}")
 
         current_period_count = int(r.get(b64_host))
         total_count = int(r.get(f"total-{b64_host}"))
