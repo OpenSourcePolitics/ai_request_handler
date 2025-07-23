@@ -3,12 +3,12 @@ from enum import Enum
 import logging
 import redis
 import sys
-import base64
-import requests
 from flask import Flask, request, jsonify
 from openai import OpenAI
 from langfuse.model import PromptClient
 from langfuse import Langfuse
+from .models import Host
+from .utils import send_webhook_notification, increase_spam_count
 
 LOG_LEVEL = os.getenv("LANGFUSE_LOG_LEVEL", "WARN").upper()
 if LOG_LEVEL == "DEBUG":
@@ -20,8 +20,18 @@ elif LOG_LEVEL == "WARN":
 else:
     logging.basicConfig(stream=sys.stdout, level=logging.WARN)
 
+# REDIS
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+
+# WEBHOOK
+WEBHOOK_URL = os.getenv("WEBHOOK_ENDPOINT")
+WEBHOOK_AUTH_TOKEN = os.getenv("WEBHOOK_AUTH_TOKEN")
+WEBHOOK_AUTH_NAME = os.getenv("WEBHOOK_AUTH_NAME")
+WEBHOOK = (WEBHOOK_URL, WEBHOOK_AUTH_NAME, WEBHOOK_AUTH_TOKEN)
+
+SPAM_LIMIT = int(os.getenv("SPAM_LIMIT", "20"))
+SPAM_PERIOD_LIMIT = int(os.getenv("SPAM_PERIOD_LIMIT", "1800"))
 
 app = Flask(__name__)
 r = redis.Redis(
@@ -197,27 +207,18 @@ def spam_detection():
             503,
         )
 
-    if spam_result == "SPAM" and os.getenv("WEBHOOK_ENDPOINT") is not None:
-        encoded_host = host.encode("utf-8")
-        b64_host = base64.b64encode(encoded_host)
-
-        r.incr(f"total-{b64_host}")
-        if r.get(b64_host) is None:
-            r.set(b64_host, 1)
-            r.expire(b64_host, int(os.getenv("SPAM_PERIOD_LIMIT", "1800")))
-        else:
-            r.incr(b64_host)
-
-        current_period_count = int(r.get(b64_host))
-        total_count = int(r.get(f"total-{b64_host}"))
-        if current_period_count is not None and current_period_count > int(os.getenv("SPAM_LIMIT", "20")):
-            url = os.getenv("WEBHOOK_ENDPOINT")
-            payload = {'host': host, "limit": int(os.getenv("SPAM_LIMIT", "20")), "total": total_count}
-            webhook_auth_token = os.getenv("WEBHOOK_AUTH_TOKEN")
-            webhook_auth_name = os.getenv("WEBHOOK_AUTH_NAME")
-            requests.post(url,
-                          json=payload,
-                          headers={"Content-Type": "application/json", webhook_auth_name: webhook_auth_token})
-            r.delete(b64_host)
+    if spam_result == "SPAM" and any(WEBHOOK):
+        h = Host(host=host)
+        limit_exceeded = increase_spam_count(h=h,
+                                             r=r,
+                                             spam_limit=SPAM_LIMIT,
+                                             spam_period_limit=SPAM_PERIOD_LIMIT)
+        if limit_exceeded:
             logger.info("-- Limit exceeded")
+            total_count = int(r.get(h.total_redis_key()))
+            send_webhook_notification(h=h,
+                                      webhook=WEBHOOK,
+                                      r=r,
+                                      limit=SPAM_LIMIT,
+                                      total_count=total_count)
     return jsonify(spam=spam_result), 200
