@@ -60,6 +60,11 @@ spec:
               secretKeyRef:
                 name: arh-secrets
                 key: WEBHOOK_ENDPOINT
+          - name: WEBHOOK_AUTH_NAME
+            valueFrom:
+              secretKeyRef:
+                name: arh-secrets
+                key: WEBHOOK_AUTH_NAME
           - name: WEBHOOK_AUTH_TOKEN
             valueFrom:
               secretKeyRef:
