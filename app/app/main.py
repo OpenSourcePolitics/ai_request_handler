@@ -49,6 +49,7 @@ langfuse = Langfuse(
 )
 logger.info("Langfuse SDK v3 initialized")
 
+
 class ContentType(Enum):
     COMMENT = "comment"
     PROPOSAL = "proposal"
@@ -57,6 +58,7 @@ class ContentType(Enum):
     DEBATE = "debate"
     INITIATIVE = "initiative"
     COLLABORATIVE_DRAFT = "collaborative_draft"
+
 
 CONTENT_TYPE_MAPPING = {
     "Decidim::Comments::Comment": ContentType.COMMENT,
@@ -76,6 +78,7 @@ PROMPT_NAME_MAPPING = {
     ContentType.DEBATE: "Spam Debate Detection",
     ContentType.INITIATIVE: "Spam Initiative Detection"
 }
+
 
 def resolve_content_type(content_type_raw: str):
     content_type = CONTENT_TYPE_MAPPING.get(content_type_raw)
@@ -101,10 +104,10 @@ def generate_model_response(**kwargs):
     )
 
     with langfuse.start_as_current_generation(
-        name="generate_model_response",
-        model=model,
-        input={"messages": messages},
-        metadata={k: v for k, v in kwargs.items() if k not in ["model", "messages"]},
+            name="generate_model_response",
+            model=model,
+            input={"messages": messages},
+            metadata={k: v for k, v in kwargs.items() if k not in ["model", "messages"]},
     ) as gen_span:
         response = openai_client.chat.completions.create(**kwargs)
         completion = response.choices[0].message.content
@@ -150,7 +153,7 @@ def run_inference_pipeline(host, content_type_raw, content_user):
             model=content_config["model"],
             messages=[
                 {"role": "system", "content": content_prompt},
-                {"role": "user",   "content": content_user}
+                {"role": "user", "content": content_user}
             ],
             max_tokens=content_config["max_tokens"],
             temperature=content_config["temperature"],
@@ -171,6 +174,7 @@ def run_inference_pipeline(host, content_type_raw, content_user):
         )
 
         return result
+
 
 @app.route('/spam/detection', methods=['POST'])
 def spam_detection():
@@ -209,16 +213,16 @@ def spam_detection():
 
     if spam_result == "SPAM" and any(WEBHOOK):
         h = Host(host=host)
-        limit_exceeded = increase_spam_count(h=h,
-                                             r=r,
-                                             spam_limit=SPAM_LIMIT,
-                                             spam_period_limit=SPAM_PERIOD_LIMIT)
-        if limit_exceeded:
-            logger.info("-- Limit exceeded")
-            total_count = int(r.get(h.total_redis_key()))
+        current, total, exceeded = increase_spam_count(h=h,
+                                                       r=r,
+                                                       spam_limit=SPAM_LIMIT,
+                                                       spam_period_limit=SPAM_PERIOD_LIMIT)
+        if exceeded:
+            logger.info("-- Limit exceeded ({}/{})--".format(current, SPAM_LIMIT), exc_info=True)
             send_webhook_notification(h=h,
                                       webhook=WEBHOOK,
                                       r=r,
                                       limit=SPAM_LIMIT,
-                                      total_count=total_count)
+                                      current=current,
+                                      total_count=total)
     return jsonify(spam=spam_result), 200

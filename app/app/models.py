@@ -7,6 +7,9 @@ class Host:
         self.host = host
         self.b64_host = self.__to_base64()
 
+    def redis_keys(self) -> tuple:
+        return self.period_redis_key(), self.total_redis_key()
+
     def period_redis_key(self) -> str:
         return f"spam:{self.b64_host}:period"
 
