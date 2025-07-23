@@ -214,8 +214,11 @@ def spam_detection():
         if current_period_count is not None and current_period_count > int(os.getenv("SPAM_LIMIT", "20")):
             url = os.getenv("WEBHOOK_ENDPOINT")
             payload = {'host': host, "limit": int(os.getenv("SPAM_LIMIT", "20")), "total": total_count}
-            token = os.getenv("WEBHOOK_AUTH_TOKEN")
-            requests.post(url, json=payload, headers={"Content-Type": "application/json", "X-Auth": token})
+            webhook_auth_token = os.getenv("WEBHOOK_AUTH_TOKEN")
+            webhook_auth_name = os.getenv("WEBHOOK_AUTH_NAME")
+            requests.post(url,
+                          json=payload,
+                          headers={"Content-Type": "application/json", webhook_auth_name: webhook_auth_token})
             r.delete(b64_host)
             logger.info("-- Limit exceeded")
     return jsonify(spam=spam_result), 200
