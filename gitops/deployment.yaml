@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: ai-request-handler
-        image: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler:v1.0.9
+        image: rg.fr-par.scw.cloud/decidim-ai/ai_request_handler:v2.0.0
         ports:
         - containerPort: 80
         resources:
