@@ -25,26 +25,26 @@ spec:
           limits:
             memory: "512Mi"
         env:
-          - name: LANGFUSE_BASE_URL
+          - name: GRIST_DOC_ID
             valueFrom:
               secretKeyRef:
                 name: arh-secrets
-                key: LANGFUSE_BASE_URL
-          - name: LANGFUSE_PUBLIC_KEY
+                key: GRIST_DOC_ID
+          - name: GRIST_API_KEY
             valueFrom:
               secretKeyRef:
                 name: arh-secrets
-                key: LANGFUSE_PUBLIC_KEY
-          - name: LANGFUSE_LOG_LEVEL
+                key: GRIST_API_KEY
+          - name: GRIST_SERVER
             valueFrom:
               secretKeyRef:
                 name: arh-secrets
-                key: LANGFUSE_LOG_LEVEL
-          - name: LANGFUSE_SECRET_KEY
+                key: GRIST_SERVER
+          - name: PG_DSN
             valueFrom:
               secretKeyRef:
                 name: arh-secrets
-                key: LANGFUSE_SECRET_KEY
+                key: PG_DSN
           - name: CLOUD_BASE_URL
             valueFrom:
               secretKeyRef:
